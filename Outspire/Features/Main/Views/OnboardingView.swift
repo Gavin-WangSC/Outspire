@@ -10,6 +10,7 @@ struct OnboardingView: View {
 
     // Add states for tracking permission status
     @State private var notificationPermissionGranted = false
+    @State private var liveActivityEnabled = true
 
     // Focus state for keyboard controls
     @FocusState private var buttonFocused: OnboardingButtonFocus?
@@ -282,8 +283,8 @@ struct OnboardingView: View {
             }
 
         case .liveActivityPermission:
-            // Enable Live Activity and move on
-            UserDefaults.standard.set(true, forKey: "liveActivityEnabled")
+            // Save user's choice and move on
+            UserDefaults.standard.set(liveActivityEnabled, forKey: "liveActivityEnabled")
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
             impactFeedback.prepare()
             impactFeedback.impactOccurred()
@@ -340,7 +341,7 @@ struct OnboardingView: View {
         case .information:
             standardPageView(for: page)
         case .liveActivityPermission:
-            standardPageView(for: page)
+            liveActivityPageView(for: page)
         case .notificationPermission:
             permissionPageView(
                 for: page,
@@ -442,6 +443,69 @@ struct OnboardingView: View {
                 .padding(.horizontal, 32)
                 .frame(maxWidth: 500)
                 .padding(.top, 10)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
+
+    @ViewBuilder
+    func liveActivityPageView(for page: OnboardingPage) -> some View {
+        VStack(spacing: 30) {
+            ZStack {
+                Image(systemName: page.imageName)
+                    .font(.system(size: 70))
+                    .foregroundStyle(page.imageColor)
+                    .padding()
+                    .background(
+                        Circle()
+                            .fill(page.imageColor.opacity(0.1))
+                            .frame(width: 140, height: 140)
+                    )
+
+                if liveActivityEnabled {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 30))
+                        .foregroundStyle(.green)
+                        .background(
+                            Circle()
+                                .fill(Color(UIColor.systemBackground))
+                                .frame(width: 32, height: 32)
+                        )
+                        .offset(x: 50, y: 50)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: liveActivityEnabled)
+            .onTapGesture {
+                liveActivityEnabled.toggle()
+                HapticManager.shared.playSelectionFeedback()
+            }
+
+            Text(page.title)
+                .font(.largeTitle)
+                .fontDesign(.rounded)
+                .bold()
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            Text(page.description)
+                .font(.title3)
+                .fontDesign(.rounded)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 32)
+                .frame(maxWidth: 500)
+
+            // Toggle
+            Toggle(isOn: $liveActivityEnabled) {
+                Text("Enable Live Activity")
+                    .font(.body)
+                    .fontDesign(.rounded)
+                    .fontWeight(.medium)
+            }
+            .tint(page.imageColor)
+            .padding(.horizontal, 40)
+            .frame(maxWidth: 400)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
