@@ -35,6 +35,7 @@ class ClasstableViewModel: ObservableObject {
     @Published var isLoadingTimetable: Bool = false
     @Published var lastUpdateTime: Date = .init()
     @Published var formattedLastUpdateTime: String = ""
+    @Published var isUsingCachedData: Bool = false
 
     private let cacheDuration: TimeInterval = 86400 // 1 day in seconds
 
@@ -157,8 +158,12 @@ class ClasstableViewModel: ObservableObject {
                         UserDefaults.standard.set(first.W_YearID, forKey: "selectedYearId")
                         self.fetchTimetable(forceRefresh: forceRefresh)
                     }
-                case let .failure(error):
-                    self.errorMessage = "Failed to load years: \(error.localizedDescription)"
+                case .failure:
+                    // Fall back to cached data silently if available
+                    if self.years.isEmpty {
+                        self.loadCachedData()
+                        self.isUsingCachedData = !self.years.isEmpty
+                    }
                 }
             }
         }
@@ -187,13 +192,15 @@ class ClasstableViewModel: ObservableObject {
                         guard let self = self else { return }
                         DispatchQueue.main.async {
                             self.isLoadingTimetable = false
+                            self.isUsingCachedData = false
                             switch result {
                             case let .success(items):
                                 let grid = Self.buildGrid(from: items)
                                 self.timetable = grid
                                 self.cacheTimetable(grid, for: self.selectedYearId)
-                            case let .failure(error):
-                                self.errorMessage = "Failed to load timetable: \(error.localizedDescription)"
+                            case .failure:
+                                self.loadCachedTimetable(for: self.selectedYearId)
+                                self.isUsingCachedData = !self.timetable.isEmpty
                             }
                         }
                     }
@@ -204,13 +211,15 @@ class ClasstableViewModel: ObservableObject {
             guard let self = self else { return }
             DispatchQueue.main.async {
                 self.isLoadingTimetable = false
+                self.isUsingCachedData = false
                 switch result {
                 case let .success(items):
                     let grid = Self.buildGrid(from: items)
                     self.timetable = grid
                     self.cacheTimetable(grid, for: self.selectedYearId)
-                case let .failure(error):
-                    self.errorMessage = "Failed to load timetable: \(error.localizedDescription)"
+                case .failure:
+                    self.loadCachedTimetable(for: self.selectedYearId)
+                    self.isUsingCachedData = !self.timetable.isEmpty
                 }
             }
         }
