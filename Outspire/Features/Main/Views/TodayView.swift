@@ -333,6 +333,13 @@ struct TodayView: View {
             } else {
                 isLoading = false
             }
+
+            // If timetable is already loaded from cache (no onChange will fire),
+            // explicitly trigger Live Activity + Worker registration.
+            if !classtableViewModel.timetable.isEmpty {
+                classtableViewModel.startLiveActivityIfNeeded(timetable: classtableViewModel.timetable)
+                ClassActivityManager.shared.setTimetable(classtableViewModel.timetable)
+            }
         }
 
         classtableViewModel.startTimer()

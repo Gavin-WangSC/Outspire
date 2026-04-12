@@ -78,12 +78,37 @@ enum PushRegistrationService {
         post(endpoint: "/resume", body: Body(deviceId: deviceId))
     }
 
+    private static let pendingUnregisterKey = "push_pending_unregister"
+
     /// Remove this device's registration from the Worker (logout / account switch).
+    /// Persists a tombstone so the unregister is retried if the network is down.
     static func unregister() {
+        // Mark as pending so we retry on next launch if this fails
+        UserDefaults.standard.set(true, forKey: pendingUnregisterKey)
+
         struct Body: Encodable {
             let deviceId: String
         }
-        post(endpoint: "/unregister", body: Body(deviceId: deviceId))
+        post(endpoint: "/unregister", body: Body(deviceId: deviceId)) { success in
+            if success {
+                UserDefaults.standard.removeObject(forKey: pendingUnregisterKey)
+            }
+        }
+    }
+
+    /// Call on app launch to retry any unregister that failed previously.
+    static func retryPendingUnregisterIfNeeded() {
+        guard UserDefaults.standard.bool(forKey: pendingUnregisterKey) else { return }
+        Log.net.info("Retrying pending push unregister...")
+        struct Body: Encodable {
+            let deviceId: String
+        }
+        post(endpoint: "/unregister", body: Body(deviceId: deviceId)) { success in
+            if success {
+                UserDefaults.standard.removeObject(forKey: pendingUnregisterKey)
+                Log.net.info("Pending push unregister succeeded")
+            }
+        }
     }
 
     // MARK: - Private

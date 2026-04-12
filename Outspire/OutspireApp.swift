@@ -59,6 +59,8 @@ struct OutspireApp: App {
                     URLSchemeHandler.shared.setAppReady()
                     // Start connectivity monitoring
                     connectivityManager.startMonitoring()
+                    // Retry any failed push unregister from a previous session
+                    PushRegistrationService.retryPendingUnregisterIfNeeded()
                     // Schedule automatic cache cleanup
                     CacheManager.scheduleAutomaticCleanup()
                 }

@@ -19,6 +19,10 @@ final class ClassActivityManager: ObservableObject {
     /// Reset when either token changes.
     private var hasRegistered = false
 
+    /// Guard against overlapping register requests so a stale response
+    /// cannot overwrite a newer token.
+    private var registerGeneration = 0
+
     private init() {
         // Observe pushToStartToken once — this single Task lives for the
         // entire app lifetime and covers both local and remote LA start.
@@ -35,6 +39,9 @@ final class ClassActivityManager: ObservableObject {
                 }
             }
         }
+
+        // Restore any existing activity from a previous app session
+        restoreExistingActivity()
     }
 
     var isEnabled: Bool {
@@ -44,6 +51,19 @@ final class ClassActivityManager: ObservableObject {
 
     var isSupported: Bool {
         ActivityAuthorizationInfo().areActivitiesEnabled
+    }
+
+    // MARK: - Restore
+
+    /// Reattach to an activity that survived an app kill/relaunch.
+    private func restoreExistingActivity() {
+        guard let existing = Activity<ClassActivityAttributes>.activities.first else { return }
+        currentActivity = existing
+        isActivityRunning = true
+        Log.app.info("Restored existing Live Activity from previous session")
+
+        // Re-observe push update token for this activity
+        observePushTokenUpdates(for: existing)
     }
 
     // MARK: - Start
@@ -89,23 +109,30 @@ final class ClassActivityManager: ObservableObject {
             isActivityRunning = true
             Log.app.info("Live Activity started for \(firstClass.className)")
 
-            // Observe push update token (per-activity, so start a new Task each time)
+            // Clear stale update token from any previous activity
+            lastPushUpdateToken = nil
+            hasRegistered = false
+
             if let activity = currentActivity {
-                Task { @MainActor in
-                    for await token in activity.pushTokenUpdates {
-                        let tokenString = token.map { String(format: "%02x", $0) }.joined()
-                        Log.app.debug("LA push update token: \(tokenString.prefix(20))...")
-                        if self.lastPushUpdateToken != tokenString {
-                            self.lastPushUpdateToken = tokenString
-                            self.hasRegistered = false
-                            self.registerIfReady()
-                        }
-                    }
-                }
+                observePushTokenUpdates(for: activity)
             }
-            // pushToStartToken is already observed in init — no duplicate needed
         } catch {
             Log.app.error("Failed to start Live Activity: \(error.localizedDescription)")
+        }
+    }
+
+    /// Start observing pushTokenUpdates for a specific activity instance.
+    private func observePushTokenUpdates(for activity: Activity<ClassActivityAttributes>) {
+        Task { @MainActor in
+            for await token in activity.pushTokenUpdates {
+                let tokenString = token.map { String(format: "%02x", $0) }.joined()
+                Log.app.debug("LA push update token: \(tokenString.prefix(20))...")
+                if self.lastPushUpdateToken != tokenString {
+                    self.lastPushUpdateToken = tokenString
+                    self.hasRegistered = false
+                    self.registerIfReady()
+                }
+            }
         }
     }
 
@@ -133,7 +160,10 @@ final class ClassActivityManager: ObservableObject {
               let studentInfo = StudentInfo(userCode: userCode)
         else { return }
 
+        registerGeneration += 1
+        let generation = registerGeneration
         let timetable = currentTimetable
+
         PushRegistrationService.register(
             pushStartToken: startToken,
             pushUpdateToken: updateToken,
@@ -141,7 +171,7 @@ final class ClassActivityManager: ObservableObject {
             timetable: timetable
         ) { [weak self] success in
             DispatchQueue.main.async {
-                guard let self else { return }
+                guard let self, generation == self.registerGeneration else { return }
                 if success {
                     self.hasRegistered = true
                     self.retryCount = 0
@@ -231,6 +261,7 @@ final class ClassActivityManager: ObservableObject {
 
         currentActivity = nil
         isActivityRunning = false
+        lastPushUpdateToken = nil
     }
 
     // MARK: - End all (cleanup)
@@ -243,6 +274,7 @@ final class ClassActivityManager: ObservableObject {
         }
         currentActivity = nil
         isActivityRunning = false
+        lastPushUpdateToken = nil
         currentTimetable = []
         hasRegistered = false
     }
