@@ -379,12 +379,18 @@ function buildPushSchedule(
 
     // Break/lunch between classes (only if there's a gap)
     if (next && p.end !== next.start) {
+      const gapEnd = parseTime(p.end);
+      const gapStart = parseTime(next.start);
+      const gapMinutes =
+        (gapStart.h * 60 + gapStart.m) - (gapEnd.h * 60 + gapEnd.m);
+      const breakName = gapMinutes > 30 ? "Lunch Break" : "Break";
+
       pushes.push({
         time: p.end,
         event: "update",
         contentState: {
-          className: next.name,
-          roomNumber: next.room,
+          className: breakName,
+          roomNumber: "",
           status: "break",
           periodStart: timeToAppleDate(p.end),
           periodEnd: timeToAppleDate(next.start),
