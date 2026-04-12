@@ -667,34 +667,42 @@ async function handleMinuteDispatch(env: Env): Promise<void> {
   const config = apnsConfig(env);
   const now = Math.floor(Date.now() / 1000);
 
-  for (const job of jobs) {
-    // Stamp timestamps at send time
-    const aps = (job.payload as any).aps;
-    aps.timestamp = now; // APNs protocol field: Unix timestamp
-    if (aps.event === "start" && aps.attributes) {
-      // startDate is decoded by Swift's Date (timeIntervalSinceReferenceDate)
-      aps.attributes.startDate = now - APPLE_REFERENCE_DATE;
-    }
-    if (aps.event === "end") {
-      aps["dismissal-date"] = now + 900; // APNs protocol field: Unix timestamp
-    }
+  // Stamp timestamps, then send all pushes concurrently (batched, max 20)
+  const BATCH_SIZE = 20;
+  for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
+    const batch = jobs.slice(i, i + BATCH_SIZE);
 
-    const jobConfig = { ...config, useSandbox: job.sandbox };
-    const result = await sendPush(jobConfig, {
-      token: job.token,
-      pushType: job.pushType,
-      topic: job.topic,
-      payload: job.payload,
-    });
+    const results = await Promise.all(
+      batch.map((job) => {
+        const aps = (job.payload as any).aps;
+        aps.timestamp = now;
+        if (aps.event === "start" && aps.attributes) {
+          aps.attributes.startDate = now - APPLE_REFERENCE_DATE;
+        }
+        if (aps.event === "end") {
+          aps["dismissal-date"] = now + 900;
+        }
 
-    // Log failures for observability; 410 = token revoked
-    if (!result.ok) {
-      console.error(
-        `APNs push failed for device ${job.deviceId}: ${result.status} ${result.body}`
-      );
-      if (result.status === 410) {
-        // Token is permanently invalid — remove registration
-        await env.OUTSPIRE_KV.delete(`reg:${job.deviceId}`);
+        const jobConfig = { ...config, useSandbox: job.sandbox };
+        return sendPush(jobConfig, {
+          token: job.token,
+          pushType: job.pushType,
+          topic: job.topic,
+          payload: job.payload,
+        }).then((result) => ({ job, result }));
+      })
+    );
+
+    // Handle failures
+    for (const { job, result } of results) {
+      if (!result.ok) {
+        console.error(
+          `APNs push failed for device ${job.deviceId}: ${result.status} ${result.body}`
+        );
+        if (result.status === 410) {
+          await env.OUTSPIRE_KV.delete(`reg:${job.deviceId}`);
+          await removeDeviceFromDispatch(env, job.deviceId);
+        }
       }
     }
   }
@@ -711,7 +719,7 @@ async function handleRegister(
 ): Promise<Response> {
   const body: RegisterBody = await request.json();
 
-  if (!body.deviceId || !body.pushStartToken || !body.schedule) {
+  if (!body.deviceId || !body.pushStartToken || !body.pushUpdateToken || !body.schedule) {
     return new Response("Missing required fields", { status: 400 });
   }
 

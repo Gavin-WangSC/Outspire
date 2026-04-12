@@ -110,6 +110,8 @@ Evaluated per user during daily planning:
 1. `ClassActivityManager.shared.endAllActivities()` — immediately ends any running Live Activity
 2. `PushRegistrationService.unregister()` — tells Worker to delete registration + dispatch entries
 
+If the device is offline at logout, the unregister is persisted as a tombstone (`push_pending_unregister` in UserDefaults) and retried on next app launch via `retryPendingUnregisterIfNeeded()`.
+
 On re-login, the same `deviceId` is reused, so the new account's schedule overwrites cleanly.
 
 ## Optimistic Auth
@@ -123,7 +125,9 @@ On cold launch, if the device has a saved user + Keychain credentials, `AuthServ
 - A valid timetable has been set via `setTimetable(_:)`
 - User info (track, entry year) is available
 
-The flag resets when either token changes or when `setTimetable` is called with new data. The `pushToStartTokenUpdates` stream is observed exactly once in `init` (not duplicated in `startActivity`).
+The flag resets when either token changes or when `setTimetable` is called with new data. A `registerGeneration` counter ensures that responses from outdated register requests (e.g., if a token changed mid-flight) are discarded. `hasRegistered` is not persisted — app kill/relaunch may trigger one redundant but idempotent `/register`.
+
+On launch, existing activities are restored from `Activity.activities` and their `pushTokenUpdates` are re-observed. `lastPushUpdateToken` is cleared when activities end to prevent stale tokens from being registered.
 
 ## Authentication
 
