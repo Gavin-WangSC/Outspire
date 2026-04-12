@@ -803,7 +803,7 @@ export default {
     // Health check — no auth required
     if (url.pathname === "/health") {
       return new Response(
-        JSON.stringify({ ok: true, time: todayCST() }),
+        JSON.stringify({ ok: true, date: todayCST() }),
         { headers: { "content-type": "application/json" } }
       );
     }

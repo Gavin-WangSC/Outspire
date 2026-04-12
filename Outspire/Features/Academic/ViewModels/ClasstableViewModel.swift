@@ -53,11 +53,11 @@ class ClasstableViewModel: ObservableObject {
         self.formattedLastUpdateTime = "Last updated: \(formatter.string(from: lastUpdateTime))"
     }
 
-    private func loadCachedData() {
+    private func loadCachedData(ignoreTTL: Bool = false) {
         // Load cached years
         if let cachedYearsData = UserDefaults.standard.data(forKey: "cachedYears"),
            let decodedYears = try? JSONDecoder().decode([Year].self, from: cachedYearsData),
-           isCacheValid(for: "yearsCacheTimestamp")
+           (ignoreTTL || isCacheValid(for: "yearsCacheTimestamp"))
         {
             self.years = decodedYears
 
@@ -75,7 +75,10 @@ class ClasstableViewModel: ObservableObject {
         }
     }
 
-    private func loadCachedTimetable(for yearId: String) {
+    /// Load cached timetable from UserDefaults.
+    /// - Parameter ignoreTTL: When true, loads even if cache has expired (used as
+    ///   fallback when network fails — stale data is better than no data).
+    private func loadCachedTimetable(for yearId: String, ignoreTTL: Bool = false) {
         guard !yearId.isEmpty else { return }
 
         let cacheKey = "cachedTimetable-\(yearId)"
@@ -86,7 +89,7 @@ class ClasstableViewModel: ObservableObject {
            let decodedTimetable = try? JSONDecoder().decode(
                [[String]].self, from: cachedTimetableData
            ),
-           isCacheValid(for: timestampKey),
+           (ignoreTTL || isCacheValid(for: timestampKey)),
            UserDefaults.standard.integer(forKey: versionKey) == timetableCacheVersion
         {
             self.timetable = decodedTimetable
@@ -159,9 +162,10 @@ class ClasstableViewModel: ObservableObject {
                         self.fetchTimetable(forceRefresh: forceRefresh)
                     }
                 case .failure:
-                    // Fall back to cached data silently if available
+                    // Fall back to cached data silently — ignore TTL since
+                    // stale data is better than an empty screen when offline.
                     if self.years.isEmpty {
-                        self.loadCachedData()
+                        self.loadCachedData(ignoreTTL: true)
                         self.isUsingCachedData = !self.years.isEmpty
                     }
                 }
@@ -199,7 +203,7 @@ class ClasstableViewModel: ObservableObject {
                                 self.timetable = grid
                                 self.cacheTimetable(grid, for: self.selectedYearId)
                             case .failure:
-                                self.loadCachedTimetable(for: self.selectedYearId)
+                                self.loadCachedTimetable(for: self.selectedYearId, ignoreTTL: true)
                                 self.isUsingCachedData = !self.timetable.isEmpty
                             }
                         }
@@ -218,7 +222,7 @@ class ClasstableViewModel: ObservableObject {
                     self.timetable = grid
                     self.cacheTimetable(grid, for: self.selectedYearId)
                 case .failure:
-                    self.loadCachedTimetable(for: self.selectedYearId)
+                    self.loadCachedTimetable(for: self.selectedYearId, ignoreTTL: true)
                     self.isUsingCachedData = !self.timetable.isEmpty
                 }
             }
