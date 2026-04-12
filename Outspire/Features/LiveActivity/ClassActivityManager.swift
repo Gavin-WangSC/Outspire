@@ -23,7 +23,7 @@ final class ClassActivityManager: ObservableObject {
         // Observe pushToStartToken once — this single Task lives for the
         // entire app lifetime and covers both local and remote LA start.
         if #available(iOS 17.2, *) {
-            Task {
+            Task { @MainActor in
                 for await token in Activity<ClassActivityAttributes>.pushToStartTokenUpdates {
                     let tokenString = token.map { String(format: "%02x", $0) }.joined()
                     Log.app.debug("LA pushToStart token: \(tokenString.prefix(20))...")
@@ -90,7 +90,7 @@ final class ClassActivityManager: ObservableObject {
 
             // Observe push update token (per-activity, so start a new Task each time)
             if let activity = currentActivity {
-                Task {
+                Task { @MainActor in
                     for await token in activity.pushTokenUpdates {
                         let tokenString = token.map { String(format: "%02x", $0) }.joined()
                         Log.app.debug("LA push update token: \(tokenString.prefix(20))...")

@@ -89,16 +89,10 @@ struct SmallWidgetView: View {
                 Spacer()
 
                 if let cls = entry.currentClass {
-                    let minutesUntil = max(0, Int(cls.startTime.timeIntervalSince(entry.date) / 60))
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text("\(minutesUntil)")
-                            .numberStyle(size: 34)
-                            .foregroundStyle(.white)
-                            .tracking(-1.5)
-                        Text("min")
-                            .titleStyle(size: 20)
-                            .foregroundStyle(.white)
-                    }
+                    Text(timerInterval: entry.date ... cls.startTime, countsDown: true)
+                        .numberStyle(size: 34)
+                        .foregroundStyle(.white)
+                        .tracking(-1.5)
 
                     Text(cls.roomNumber.isEmpty ? " " : cls.roomNumber)
                         .captionStyle()
@@ -139,16 +133,10 @@ struct SmallWidgetView: View {
                 Spacer()
 
                 if let cls = entry.currentClass {
-                    let minutesUntil = max(0, Int(cls.endTime.timeIntervalSince(entry.date) / 60))
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text("\(minutesUntil)")
-                            .numberStyle(size: 34)
-                            .foregroundStyle(.white)
-                            .tracking(-1.5)
-                        Text("min")
-                            .titleStyle(size: 20)
-                            .foregroundStyle(.white)
-                    }
+                    Text(timerInterval: entry.date ... cls.endTime, countsDown: true)
+                        .numberStyle(size: 34)
+                        .foregroundStyle(.white)
+                        .tracking(-1.5)
                 }
 
                 if let next = entry.upcomingClasses.first, !next.roomNumber.isEmpty {

@@ -192,15 +192,17 @@ async function fetchHolidayCN(
   return data.days;
 }
 
-async function fetchSchoolCalendar(
+async function fetchSchoolCalendarByAcademicYear(
   env: Env,
-  year: string
+  academicYear: string // e.g. "2025-2026"
 ): Promise<SchoolCalendar | null> {
-  const cacheKey = `cache:school-cal:${year}`;
+  const cacheKey = `cache:school-cal:${academicYear}`;
   const cached = await env.OUTSPIRE_KV.get(cacheKey, "json");
   if (cached) return cached as SchoolCalendar;
 
-  const resp = await fetch(`${env.GITHUB_CALENDAR_URL}/${year}.json`);
+  const resp = await fetch(
+    `${env.GITHUB_CALENDAR_URL}/${academicYear}.json`
+  );
   if (!resp.ok) return null;
   const data: SchoolCalendar = await resp.json();
 
@@ -208,6 +210,29 @@ async function fetchSchoolCalendar(
     expirationTtl: 300,
   });
   return data;
+}
+
+/**
+ * Fetch and merge school calendars for the two academic years that could
+ * cover the given date. E.g. for 2026-04-12, fetch 2025-2026 and 2026-2027,
+ * merge their semesters and specialDays.
+ */
+async function fetchSchoolCalendar(
+  env: Env,
+  year: string // natural year, e.g. "2026"
+): Promise<SchoolCalendar | null> {
+  const y = parseInt(year);
+  const [a, b] = await Promise.all([
+    fetchSchoolCalendarByAcademicYear(env, `${y - 1}-${y}`),
+    fetchSchoolCalendarByAcademicYear(env, `${y}-${y + 1}`),
+  ]);
+
+  if (!a && !b) return null;
+
+  return {
+    semesters: [...(a?.semesters ?? []), ...(b?.semesters ?? [])],
+    specialDays: [...(a?.specialDays ?? []), ...(b?.specialDays ?? [])],
+  };
 }
 
 // --- Day decision logic ---

@@ -49,7 +49,7 @@ struct ClassWidgetProvider: TimelineProvider {
 
         if schedule.isEmpty {
             let entry = ClassWidgetEntry(date: Date(), status: .noClasses, currentClass: nil, upcomingClasses: [], eventName: nil)
-            completion(Timeline(entries: [entry], policy: .atEnd))
+            completion(Timeline(entries: [entry], policy: .after(nextMorning())))
             return
         }
 
@@ -126,7 +126,18 @@ struct ClassWidgetProvider: TimelineProvider {
             filtered = [last]
         }
 
-        completion(Timeline(entries: filtered, policy: .atEnd))
+        // Use .atEnd for active schedule (entries have exact transition times),
+        // .after(nextMorning) for completed state so widget refreshes next day
+        let hasActiveEntries = filtered.contains { $0.status != .completed }
+        completion(Timeline(entries: filtered, policy: hasActiveEntries ? .atEnd : .after(nextMorning())))
+    }
+
+    private func nextMorning() -> Date {
+        Calendar.current.nextDate(
+            after: Date(),
+            matching: DateComponents(hour: 7, minute: 30),
+            matchingPolicy: .nextTime
+        ) ?? Date().addingTimeInterval(86400)
     }
 
     private func buildTodaySchedule(from timetable: [[String]]) -> [ScheduledClass] {

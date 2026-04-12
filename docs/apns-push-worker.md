@@ -34,7 +34,7 @@ Each device generates a stable UUID on first launch, stored in Keychain (`Secure
 |-------------|----------|-----|
 | `reg:{deviceId}` | `StoredRegistration` (tokens, schedule, track, pause state) | 30 days |
 | `dispatch:{YYYY-MM-DD}:{HH:MM}` | `PushJob[]` — all push jobs for that exact minute | ~20 hours |
-| `cache:school-cal:{year}` | School calendar JSON | 5 min |
+| `cache:school-cal:{academicYear}` | School calendar JSON (e.g. `2025-2026`) | 5 min |
 | `cache:holiday-cn:{year}` | Holiday-cn day list | 1 hour |
 
 ## API Endpoints
@@ -99,7 +99,7 @@ Runs every minute during school hours:
 Evaluated per user during daily planning:
 
 1. **Pause check** — skip if paused (auto-resume if `resumeDate` reached)
-2. **School calendar** — fetch from GitHub (`calendar/{year}.json`), check semester range and special days (cancellations, makeup days with `followsWeekday`)
+2. **School calendar** — fetch from GitHub (`calendar/{year-1}-{year}.json` + `calendar/{year}-{year+1}.json`), merge semesters and special days, check semester range and special days (cancellations, makeup days with `followsWeekday`)
 3. **Holiday-cn** — check Chinese statutory holidays/workdays
 4. **Weekend** — skip Saturday/Sunday unless makeup day
 5. Normal school day → build dispatch slots
