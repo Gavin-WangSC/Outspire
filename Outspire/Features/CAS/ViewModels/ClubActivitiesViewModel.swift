@@ -19,7 +19,7 @@ class ClubActivitiesViewModel: ObservableObject {
     private var cachedActivities: [String: [ActivityRecord]] = [:]
     private let cacheTimestampKey = "clubActivitiesCacheTimestamp"
     private let cacheDuration: TimeInterval = 300
-    private let sessionService = SessionService.shared
+    private let authV2 = AuthServiceV2.shared
 
     // MARK: - Initialization
 

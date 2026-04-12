@@ -33,7 +33,7 @@ class AddRecordViewModel: ObservableObject {
     let loggedInStudentId: String
     let onSave: () -> Void
 
-    private let sessionService = SessionService.shared
+    private let authV2 = AuthServiceV2.shared
     private static var cachedFormData: FormCache?
     private var cancellables = Set<AnyCancellable>()
 

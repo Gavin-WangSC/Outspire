@@ -4,7 +4,7 @@ import Toasts
 // Removed ColorfulX usage in favor of system materials
 
 struct ClubActivitiesView: View {
-    @EnvironmentObject var sessionService: SessionService
+    @ObservedObject private var authV2 = AuthServiceV2.shared
     @StateObject private var viewModel = ClubActivitiesViewModel()
     @State private var showingAddRecordSheet = false
     @State private var animateList = false
@@ -59,7 +59,6 @@ struct ClubActivitiesView: View {
         }
         .sheet(isPresented: $showingAddRecordSheet) {
             addRecordSheet
-                .environmentObject(sessionService) // Explicitly pass environment object
         }
         .confirmationDialog(
             "Delete Record",
@@ -114,7 +113,6 @@ struct ClubActivitiesView: View {
             GroupSelectorSection(viewModel: viewModel)
             ActivitiesSection(
                 viewModel: viewModel,
-                sessionService: sessionService,
                 showingAddRecordSheet: $showingAddRecordSheet,
                 animateList: animateList,
                 searchText: activitySearch
@@ -130,7 +128,7 @@ struct ClubActivitiesView: View {
     private var addRecordSheet: some View {
         AddRecordSheet(
             availableGroups: viewModel.groups,
-            loggedInStudentId: sessionService.userInfo?.studentid ?? "",
+            loggedInStudentId: AuthServiceV2.shared.user?.userCode ?? "",
             onSave: { viewModel.fetchActivityRecords(forceRefresh: true) },
             clubActivitiesViewModel: viewModel
         )
@@ -246,7 +244,6 @@ struct GroupSelectorSection: View {
 
 struct ActivitiesSection: View {
     @ObservedObject var viewModel: ClubActivitiesViewModel
-    let sessionService: SessionService
     @Binding var showingAddRecordSheet: Bool
     let animateList: Bool
     let searchText: String
@@ -258,7 +255,7 @@ struct ActivitiesSection: View {
         Section {
             if viewModel.groups.isEmpty && !viewModel.isLoadingGroups {
                 Group {
-                    let isAuthed = AuthServiceV2.shared.isAuthenticated || sessionService.isAuthenticated
+                    let isAuthed = AuthServiceV2.shared.isAuthenticated
                     if isAuthed {
                         ErrorView(
                             errorMessage: "No clubs available. Join a club to continue.",

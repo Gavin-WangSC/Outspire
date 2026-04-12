@@ -15,6 +15,7 @@ class NotificationManagerTests: XCTestCase {
         super.tearDown()
     }
 
+    @MainActor
     func testCentralizedNotificationManagement() {
         // Test the centralized notification management methods
         let expectation = XCTestExpectation(
@@ -33,7 +34,7 @@ class NotificationManagerTests: XCTestCase {
     }
 }
 
-// MARK: - Additional Unit Tests (NetworkService, SecureStore)
+// MARK: - Additional Unit Tests (SecureStore)
 
 private class MockURLProtocol: URLProtocol {
     static var responseData: Data?
@@ -82,57 +83,4 @@ extension NotificationManagerTests {
         XCTAssertNil(removed)
     }
 
-    func testNetworkService_async_success() async throws {
-        guard #available(iOS 15.0, *) else { return }
-
-        // Prepare mocked session
-        let config = URLSessionConfiguration.ephemeral
-        config.protocolClasses = [MockURLProtocol.self]
-        let session = URLSession(configuration: config)
-        #if DEBUG
-            NetworkService.shared.setSession(session)
-        #endif
-
-        let payload = TestDecodable(message: "ok")
-        let data = try JSONEncoder().encode(payload)
-        MockURLProtocol.responseData = data
-        MockURLProtocol.statusCode = 200
-        MockURLProtocol.error = nil
-
-        let result: TestDecodable = try await NetworkService.shared.requestAsync(
-            endpoint: "test_endpoint.php",
-            method: .post,
-            parameters: ["a": "b"],
-            sessionId: "mockSession"
-        )
-
-        XCTAssertEqual(result, payload)
-    }
-
-    func testNetworkService_async_serverError() async {
-        guard #available(iOS 15.0, *) else { return }
-
-        let config = URLSessionConfiguration.ephemeral
-        config.protocolClasses = [MockURLProtocol.self]
-        let session = URLSession(configuration: config)
-        #if DEBUG
-            NetworkService.shared.setSession(session)
-        #endif
-
-        MockURLProtocol.responseData = Data("{}".utf8)
-        MockURLProtocol.statusCode = 500
-        MockURLProtocol.error = nil
-
-        do {
-            let _: TestDecodable = try await NetworkService.shared.requestAsync(
-                endpoint: "test_endpoint.php"
-            )
-            XCTFail("Expected to throw NetworkError.serverError")
-        } catch {
-            guard case let NetworkError.serverError(code) = error else {
-                return XCTFail("Unexpected error: \(error)")
-            }
-            XCTAssertEqual(code, 500)
-        }
-    }
 }

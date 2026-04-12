@@ -4,7 +4,7 @@ import Toasts
 // Removed ColorfulX usage in favor of system materials
 
 struct ReflectionsView: View {
-    @EnvironmentObject var sessionService: SessionService
+    @ObservedObject private var authV2 = AuthServiceV2.shared
     @StateObject private var viewModel = ReflectionsViewModel()
     @State private var showingAddSheet = false
     @State private var animateList = false
@@ -54,7 +54,6 @@ struct ReflectionsView: View {
         }
         .sheet(isPresented: $showingAddSheet) {
             addReflectionSheet
-                .environmentObject(sessionService)
         }
         .confirmationDialog(
             "Delete Reflection",
@@ -89,7 +88,6 @@ struct ReflectionsView: View {
             ReflectionGroupSelectorSection(viewModel: viewModel)
             ReflectionsSection(
                 viewModel: viewModel,
-                sessionService: sessionService,
                 showingAddSheet: $showingAddSheet,
                 animateList: animateList
             )
@@ -103,7 +101,7 @@ struct ReflectionsView: View {
     private var addReflectionSheet: some View {
         AddReflectionSheet(
             availableGroups: viewModel.groups,
-            studentId: sessionService.userInfo?.studentid ?? ""
+            studentId: AuthServiceV2.shared.user?.userCode ?? ""
         ) {
             viewModel.fetchReflections(forceRefresh: true)
         }
@@ -213,7 +211,6 @@ struct ReflectionGroupSelectorSection: View {
 
 struct ReflectionsSection: View {
     @ObservedObject var viewModel: ReflectionsViewModel
-    let sessionService: SessionService
     @Binding var showingAddSheet: Bool
     let animateList: Bool
     @State private var hasCompletedInitialLoad = false
@@ -226,7 +223,7 @@ struct ReflectionsSection: View {
         Section {
             if viewModel.groups.isEmpty && !viewModel.isLoadingGroups {
                 Group {
-                    let isAuthed = AuthServiceV2.shared.isAuthenticated || sessionService.isAuthenticated
+                    let isAuthed = AuthServiceV2.shared.isAuthenticated
                     if isAuthed {
                         ErrorView(
                             errorMessage: "No clubs available. Join a club to continue.",
@@ -310,10 +307,8 @@ struct ReflectionsList: View {
                         || r.C_Content.localizedCaseInsensitiveContains(searchText)
                 }
         ).sorted { a, b in
-            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            let g = DateFormatter(); g.dateFormat = "yyyy-MM-dd"
-            let da = f.date(from: a.C_Date) ?? g.date(from: a.C_Date) ?? Date.distantPast
-            let db = f.date(from: b.C_Date) ?? g.date(from: b.C_Date) ?? Date.distantPast
+            let da = ReflectionDateParser.parse(a.C_Date)
+            let db = ReflectionDateParser.parse(b.C_Date)
             return sortDescending ? (da > db) : (da < db)
         }
         ForEach(Array(list.enumerated()), id: \.element.id) { _, reflection in
@@ -370,5 +365,25 @@ struct ReflectionEmptyStateView: View {
 private extension Optional where Wrapped == String {
     var isNilOrEmpty: Bool {
         self?.isEmpty ?? true
+    }
+}
+
+private enum ReflectionDateParser {
+    private static let fullFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return f
+    }()
+
+    private static let dateOnlyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    static func parse(_ dateString: String) -> Date {
+        fullFormatter.date(from: dateString)
+            ?? dateOnlyFormatter.date(from: dateString)
+            ?? .distantPast
     }
 }

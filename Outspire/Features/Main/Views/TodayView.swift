@@ -6,7 +6,6 @@ import SwiftUI
 struct TodayView: View {
     // MARK: - Environment & State
 
-    @EnvironmentObject var sessionService: SessionService
     @StateObject private var classtableViewModel = ClasstableViewModel()
     @ObservedObject private var authV2 = AuthServiceV2.shared
     @EnvironmentObject var urlSchemeHandler: URLSchemeHandler
@@ -63,7 +62,6 @@ struct TodayView: View {
             }
         ) {
             scheduleSettingsSheet
-                .environmentObject(sessionService)
         }
         .onAppear {
             setupOnAppear()
@@ -85,10 +83,6 @@ struct TodayView: View {
         }
         .onChange(of: classtableViewModel.isLoadingTimetable) { _, isLoading in
             self.isLoading = isLoading
-        }
-        .onChange(of: sessionService.isAuthenticated) { _, isAuthenticated in
-            handleAuthChange(isAuthenticated)
-            updateGradientColors() // Update gradient when authentication changes
         }
         .onChange(of: authV2.isAuthenticated) { _, isAuthenticated in
             handleAuthChange(isAuthenticated)
@@ -286,7 +280,7 @@ struct TodayView: View {
     }
 
     private var isAuthenticated: Bool {
-        AuthServiceV2.shared.isAuthenticated || sessionService.isAuthenticated
+        AuthServiceV2.shared.isAuthenticated
     }
 
     private var assemblyTime: String {
@@ -389,10 +383,7 @@ struct TodayView: View {
             Configuration.setAsToday = false
         }
 
-        if sessionService.isAuthenticated && sessionService.userInfo == nil {
-            sessionService.fetchUserInfo { _, _ in }
-        }
-        let isTSIMSAuthed = AuthServiceV2.shared.isAuthenticated || sessionService.isAuthenticated
+        let isTSIMSAuthed = AuthServiceV2.shared.isAuthenticated
         if isTSIMSAuthed {
             // Check if we have valid cached data first
             let cacheStatus = classtableViewModel.getCacheStatus()
@@ -629,7 +620,7 @@ struct TodayView: View {
     // Method to force refresh content without rebuilding the entire view
     private func forceContentRefresh() {
         // Reload data if needed
-        if AuthServiceV2.shared.isAuthenticated || sessionService.isAuthenticated {
+        if AuthServiceV2.shared.isAuthenticated {
             classtableViewModel.fetchTimetable()
         }
 

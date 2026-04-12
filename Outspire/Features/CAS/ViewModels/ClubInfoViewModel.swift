@@ -19,7 +19,6 @@ class ClubInfoViewModel: ObservableObject {
     @Published var pendingClubId: String?
     @Published var isFromURLNavigation: Bool = false
 
-    private let sessionService = SessionService.shared
     private let authV2 = AuthServiceV2.shared
 
     func fetchCategories() {
@@ -194,8 +193,8 @@ class ClubInfoViewModel: ObservableObject {
 
     // Check if current user is a member of this club
     private func checkUserMembership() {
-        guard sessionService.isAuthenticated,
-              let currentUserId = sessionService.userInfo?.studentid
+        guard authV2.isAuthenticated,
+              let currentUserId = authV2.user?.userCode
         else {
             isUserMember = false
             return
@@ -212,7 +211,7 @@ class ClubInfoViewModel: ObservableObject {
     }
 
     func joinClub(asProject: Bool) {
-        guard authV2.isAuthenticated || sessionService.isAuthenticated,
+        guard authV2.isAuthenticated,
               let currentGroup = selectedGroup
         else {
             errorMessage = "You need to be signed in and have a club selected"
@@ -248,7 +247,7 @@ class ClubInfoViewModel: ObservableObject {
     }
 
     func exitClub() {
-        guard authV2.isAuthenticated || sessionService.isAuthenticated,
+        guard authV2.isAuthenticated,
               let currentGroup = selectedGroup
         else {
             errorMessage = "You need to be signed in and have a club selected"

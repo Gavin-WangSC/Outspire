@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct RootTabView: View {
-    @EnvironmentObject var sessionService: SessionService
     @EnvironmentObject var settingsManager: SettingsManager
     @EnvironmentObject var urlSchemeHandler: URLSchemeHandler
     @EnvironmentObject var gradientManager: GradientManager

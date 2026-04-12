@@ -5,7 +5,6 @@ import Toasts
 
 struct ClubInfoView: View {
     @StateObject private var viewModel = ClubInfoViewModel()
-    @EnvironmentObject var sessionService: SessionService
     @Environment(\.presentToast) var presentToast
     @State private var animateList = false
     @State private var refreshButtonRotation = 0.0
@@ -870,7 +869,6 @@ struct ClubDetailView: View {
 }
 
 struct MembersListView: View {
-    @EnvironmentObject var sessionService: SessionService
     let members: [Member]
     let isLoading: Bool
     let selectedGroup: ClubGroup?
@@ -922,7 +920,7 @@ struct MembersListView: View {
             // Break down the complex member row into smaller components
             MemberRow(
                 member: member,
-                isCurrentUser: member.StudentID == sessionService.userInfo?.studentid,
+                isCurrentUser: member.StudentID == AuthServiceV2.shared.user?.userCode,
                 animateList: animateList,
                 index: index
             )

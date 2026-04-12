@@ -3,7 +3,6 @@ import SwiftUI
 // Removed ColorfulX usage in favor of system materials
 
 struct NavSplitView: View {
-    @EnvironmentObject var sessionService: SessionService
     @EnvironmentObject var settingsManager: SettingsManager
     @EnvironmentObject var urlSchemeHandler: URLSchemeHandler
     @EnvironmentObject var gradientManager: GradientManager // Add gradient manager
@@ -225,7 +224,7 @@ struct NavSplitView: View {
             let isWeekend = TodayViewHelpers.isCurrentDateWeekend()
             let isHoliday = Configuration.isHolidayMode
 
-            if !sessionService.isAuthenticated {
+            if !AuthServiceV2.shared.isAuthenticated {
                 gradientManager.updateGradientForContext(
                     context: .notSignedIn, colorScheme: colorScheme
                 )

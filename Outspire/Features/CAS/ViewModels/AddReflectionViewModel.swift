@@ -40,7 +40,7 @@ class AddReflectionViewModel: ObservableObject {
     private var originalTitle: String?
     private var originalContent: String?
 
-    private let sessionService = SessionService.shared
+    private let authV2 = AuthServiceV2.shared
 
     // Autosave
     private var cancellables = Set<AnyCancellable>()
@@ -236,7 +236,7 @@ class AddReflectionViewModel: ObservableObject {
     func save() {
         guard validate() else { return }
         // Accept either legacy session or V2 auth cookies
-        if !(AuthServiceV2.shared.isAuthenticated || sessionService.isAuthenticated) {
+        if !AuthServiceV2.shared.isAuthenticated {
             errorMessage = "Sign in required"
             return
         }

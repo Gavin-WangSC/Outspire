@@ -5,13 +5,13 @@ import UIKit
 import UserNotifications
 
 // Create an environment object to manage settings state globally
+@MainActor
 class SettingsManager: ObservableObject {
     @Published var showSettingsSheet = false
 }
 
 @main
 struct OutspireApp: App {
-    @StateObject private var sessionService = SessionService.shared
     @StateObject private var regionChecker = RegionChecker.shared
     @StateObject private var notificationManager = NotificationManager.shared
 
@@ -36,18 +36,12 @@ struct OutspireApp: App {
     @State private var userActivity = NSUserActivity(activityType: NSUserActivityTypeBrowsingWeb)
 
     init() {
-        // Initialize app settings
-        if UserDefaults.standard.object(forKey: "useSSL") == nil {
-            Configuration.useSSL = false
-        }
-
     }
 
     var body: some Scene {
         WindowGroup {
             RootTabView()
                 .tint(AppColor.brand)
-                .environmentObject(sessionService)
                 .environmentObject(regionChecker)
                 .environmentObject(notificationManager)
                 .environmentObject(settingsManager) // Add settings manager
@@ -57,8 +51,6 @@ struct OutspireApp: App {
                 .installToast(position: .top)
                 .withConnectivityAlerts() // Add the connectivity alerts
                 .onAppear {
-                    // One-time auth migration for v0.7+ (forces re-sign-in for pre-0.7 users)
-                    MigrationManager.shared.performAuthMigrationIfNeeded()
                     // Setup URL Scheme Handler
                     URLSchemeHandler.shared.setAppReady()
                     // Start connectivity monitoring
@@ -77,10 +69,8 @@ struct OutspireApp: App {
                         // Proactively refresh TSIMS v2 session and restart keep-alive
                         AuthServiceV2.shared.onAppForegrounded()
 
-                        // Also refresh session status if needed
-                        if sessionService.isAuthenticated && sessionService.userInfo == nil {
-                            sessionService.fetchUserInfo { _, _ in }
-                        }
+                        // Sync auth state to widget
+                        WidgetDataManager.updateAuthState(AuthServiceV2.shared.isAuthenticated)
                     }
                 }
                 // Handle URLs when app is already running
@@ -130,7 +120,7 @@ struct OutspireApp: App {
         }
 
         // If already authenticated in either system, proceed immediately
-        if AuthServiceV2.shared.isAuthenticated || sessionService.isAuthenticated {
+        if AuthServiceV2.shared.isAuthenticated {
             _ = urlSchemeHandler.handleURL(url)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.urlSchemeHandler.closeAllSheets = false }
             return
@@ -219,7 +209,6 @@ class OutspireAppDelegate: NSObject, UIApplicationDelegate {
 extension Notification.Name {
     static let authStateDidChange = Notification.Name("authStateDidChange")
     static let holidayModeDidChange = Notification.Name("holidayModeDidChange")
-    static let timetableDataDidChange = Notification.Name("timetableDataDidChange")
     static let authenticationStatusChanged = Notification.Name("authenticationStatusChanged")
     static let tsimsV2Unauthorized = Notification.Name("tsimsV2Unauthorized")
     static let tsimsV2ReauthFailed = Notification.Name("tsimsV2ReauthFailed")

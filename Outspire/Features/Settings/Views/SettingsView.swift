@@ -3,7 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @Binding var showSettingsSheet: Bool
     var isModal: Bool = false
-    @EnvironmentObject var sessionService: SessionService
+    @ObservedObject private var authV2 = AuthServiceV2.shared
     @State private var viewRefreshID = UUID()
     @State private var showOnboardingSheet = false
     @State private var animateEntrance = false
@@ -42,7 +42,7 @@ struct SettingsView: View {
                 ShareLink(
                     item: URL(string: "https://apps.apple.com/us/app/outspire/id6743143348")!,
                     message: Text(
-                        "\nCheck out Outspire, an app that makes your WFLA life easier!\nWidgets, Class countdowns, CAS... \n\nDownload now on the App Store."
+                        "\nCheck out Outspire, an app that makes your WFLA life easier!\nClass countdowns, CAS tracking, and more.\n\nDownload now on the App Store."
                     )
                 ) {
                     HStack {
@@ -185,8 +185,6 @@ struct SettingsView: View {
 }
 
 struct AccountWithNavigation: View {
-    @EnvironmentObject var sessionService: SessionService
-
     var body: some View {
         Group {
             AccountV2View()

@@ -3,70 +3,14 @@ import Toasts
 
 struct SettingsGeneralView: View {
     @Environment(\.presentToast) var presentToast
-    @State private var useSSL = Configuration.isHttpsProxyEnabled
     @State private var hideAcademicScore = Configuration.hideAcademicScore
     @State private var showMondayClass = Configuration.showMondayClass
     @State private var showSecondsInLongCountdown = Configuration.showSecondsInLongCountdown
     @State private var showClearCacheConfirmation = false
     @State private var showCacheCleared = false
     @Environment(\.colorScheme) private var colorScheme
-    @StateObject private var connectivityManager = ConnectivityManager.shared
-
     var body: some View {
         List {
-            Section {
-                Toggle(isOn: $useSSL) {
-                    //                    HStack {
-                    Label("Enable HTTPS Relay", systemImage: "lock.fill")
-
-                    //                        if connectivityManager.isCheckingConnectivity {
-                    //                            ProgressView()
-                    //                                .controlSize(.small)
-                    //                                .padding(.horizontal, 4)
-                    //                        }
-                    //                    }
-                }
-                .onChange(of: useSSL) { _, newValue in
-                    if Configuration.httpsProxyFeatureEnabled {
-                        Configuration.useSSL = newValue
-                        connectivityManager.userToggledRelay(isEnabled: newValue)
-                    } else {
-                        // Force revert to off and notify
-                        useSSL = false
-                        Configuration.useSSL = false
-                        let toast = ToastValue(
-                            icon: Image(systemName: "exclamationmark.triangle").foregroundStyle(.yellow),
-                            message: "HTTPS Relay is temporarily disabled in this version"
-                        )
-                        presentToast(toast)
-                    }
-                }
-                .disabled(!Configuration.httpsProxyFeatureEnabled)
-
-                //                #if DEBUG
-                //                Button {
-                //                    connectivityManager.checkConnectivity(forceCheck: true)
-                //                    let toast = ToastValue(
-                //                        icon: Image(systemName: "arrow.clockwise").foregroundStyle(.secondary),
-                //                        message: "Checking connectivity..."
-                //                    )
-                //                    presentToast(toast)
-                //                } label: {
-                //                    Label("Check Connection", systemImage: "arrow.triangle.2.circlepath")
-                //                        .font(.subheadline)
-                //                }
-                //                #endif
-
-            } header: {
-                Text("Network")
-            } footer: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Enables Hypertext Transfer Protocol Secure. Relay provided by developer.")
-                }
-                .font(.footnote)
-                .foregroundColor(.secondary)
-            }
-
             Section {
                 Toggle(isOn: $showMondayClass) {
                     Label("Future Class on Weekend", systemImage: "calendar")

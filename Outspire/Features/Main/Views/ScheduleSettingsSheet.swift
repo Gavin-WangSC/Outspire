@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ScheduleSettingsSheet: View {
-    @EnvironmentObject var sessionService: SessionService
     @ObservedObject private var authV2 = AuthServiceV2.shared
     @Binding var selectedDay: Int?
     @Binding var setAsToday: Bool
@@ -26,8 +25,7 @@ struct ScheduleSettingsSheet: View {
 
     var body: some View {
         NavigationStack {
-            // Accept either legacy session or V2 cookie auth
-            if !(sessionService.isAuthenticated || authV2.isAuthenticated) {
+            if !authV2.isAuthenticated {
                 VStack(spacing: 20) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 50))

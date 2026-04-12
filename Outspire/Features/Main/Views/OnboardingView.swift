@@ -24,7 +24,7 @@ struct OnboardingView: View {
             pageType: .information
         ),
         OnboardingPage(
-            title: "Schedule & Widgets",
+            title: "Smart Schedule",
             description:
             "Stay on top of your classes and deadlines with smart scheduling. Never miss what matters most.",
             imageName: "calendar",
@@ -54,6 +54,14 @@ struct OnboardingView: View {
             imageName: "bell.badge.fill",
             imageColor: .red,
             pageType: .notificationPermission
+        ),
+        OnboardingPage(
+            title: "Live Schedule",
+            description:
+            "Get real-time class countdowns on your Lock Screen. Automatically starts before your first class and disappears after school.",
+            imageName: "clock.badge.checkmark",
+            imageColor: .cyan,
+            pageType: .liveActivityPermission
         ),
         OnboardingPage(
             title: "You're All Set!",
@@ -273,6 +281,17 @@ struct OnboardingView: View {
                 }
             }
 
+        case .liveActivityPermission:
+            // Enable Live Activity and move on
+            UserDefaults.standard.set(true, forKey: "liveActivityEnabled")
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.prepare()
+            impactFeedback.impactOccurred()
+
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                currentPage += 1
+            }
+
         case .notificationPermission:
             // For notification permission page
             if notificationPermissionGranted {
@@ -319,6 +338,8 @@ struct OnboardingView: View {
     func pageView(for page: OnboardingPage) -> some View {
         switch page.pageType {
         case .information:
+            standardPageView(for: page)
+        case .liveActivityPermission:
             standardPageView(for: page)
         case .notificationPermission:
             permissionPageView(
@@ -458,6 +479,7 @@ struct OnboardingPage {
 enum OnboardingPageType {
     case information
     case notificationPermission
+    case liveActivityPermission
 }
 
 // Enum for focus management

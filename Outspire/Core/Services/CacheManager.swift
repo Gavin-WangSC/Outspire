@@ -5,7 +5,6 @@ class CacheManager {
         let userDefaults = UserDefaults.standard
 
         // Preserve app settings
-        let useSSL = Configuration.useSSL
         let hideAcademicScore = Configuration.hideAcademicScore
 
         // Clear club activities cache
@@ -41,7 +40,6 @@ class CacheManager {
         userDefaults.removeObject(forKey: "termsWithData")
 
         // Restore preserved settings
-        Configuration.useSSL = useSSL
         Configuration.hideAcademicScore = hideAcademicScore
 
         // Remove reference to AddRecordViewModel.cachedFormData - we'll handle this differently
@@ -98,9 +96,6 @@ class CacheManager {
             }
         }
 
-        // Clear widget timetable data
-        UserDefaults(suiteName: "group.dev.wrye.Outspire")?.removeObject(
-            forKey: "widgetTimetableData")
     }
 
     // Clear school arrangements cache

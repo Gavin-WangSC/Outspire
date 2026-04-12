@@ -8,7 +8,6 @@ struct ScoreView: View {
     @State private var selectedSubjectId: String?
     @State private var animateIn = false
     @State private var refreshButtonRotation = 0.0
-    @EnvironmentObject private var sessionService: SessionService
     @ObservedObject private var authV2 = AuthServiceV2.shared
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject var gradientManager: GradientManager

@@ -43,7 +43,7 @@ class ReflectionsViewModel: ObservableObject {
     @Published var showingDeleteConfirmation = false
     @Published var reflectionToDelete: Reflection?
 
-    private let sessionService = SessionService.shared
+    private let authV2 = AuthServiceV2.shared
 
     // MARK: - Fetch Groups
 
