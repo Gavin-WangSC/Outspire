@@ -84,7 +84,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Link(destination: URL(string: "https://discord.gg/outspire")!) {
+                Link(destination: URL(string: "https://discord.gg/cp2d66pDcz")!) {
                     HStack {
                         Label {
                             Text("Discord")
