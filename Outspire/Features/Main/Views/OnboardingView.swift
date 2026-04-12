@@ -8,8 +8,6 @@ struct OnboardingView: View {
     @State private var hasAppeared = false
     @Environment(\.dismiss) private var dismiss
 
-    // Add states for tracking permission status
-    @State private var notificationPermissionGranted = false
     @State private var liveActivityEnabled = true
 
     // Focus state for keyboard controls
@@ -47,14 +45,6 @@ struct OnboardingView: View {
             imageName: "lock.document",
             imageColor: .purple,
             pageType: .information
-        ),
-        OnboardingPage(
-            title: "Stay Connected",
-            description:
-            "Receive timely updates about your commute and important school news. Stay ahead of what's happening.",
-            imageName: "bell.badge.fill",
-            imageColor: .red,
-            pageType: .notificationPermission
         ),
         OnboardingPage(
             title: "Live Schedule",
@@ -197,7 +187,6 @@ struct OnboardingView: View {
         }
         .onAppear {
             hasAppeared = true
-            checkPermissionStatus()
 
             // Mark onboarding as active to prevent alerts during onboarding
             ConnectivityManager.shared.setOnboardingActive(true)
@@ -246,16 +235,6 @@ struct OnboardingView: View {
         }
     }
 
-    // Handle checking current permission status
-    private func checkPermissionStatus() {
-        // Check notification permission
-        NotificationManager.shared.checkAuthorizationStatus { status in
-            DispatchQueue.main.async {
-                notificationPermissionGranted = (status == .authorized)
-            }
-        }
-    }
-
     // Handle next button action based on current page type
     private func handleNextAction() {
         let currentPageInfo = pages[currentPage]
@@ -293,45 +272,6 @@ struct OnboardingView: View {
                 currentPage += 1
             }
 
-        case .notificationPermission:
-            // For notification permission page
-            if notificationPermissionGranted {
-                // Already granted, move to final page
-                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                impactFeedback.prepare()
-                impactFeedback.impactOccurred()
-
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                    currentPage += 1
-                }
-            } else {
-                // Request permission then move to final page
-                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                impactFeedback.prepare()
-                impactFeedback.impactOccurred()
-
-                NotificationManager.shared.requestAuthorization { granted in
-                    DispatchQueue.main.async {
-                        notificationPermissionGranted = granted
-
-                        // Use centralized notification management
-                        NotificationManager.shared.handleNotificationSettingsChange()
-
-                        // Haptic feedback for permission result
-                        let resultFeedback = UINotificationFeedbackGenerator()
-                        if granted {
-                            resultFeedback.notificationOccurred(.success)
-                        } else {
-                            resultFeedback.notificationOccurred(.warning)
-                        }
-
-                        // Move to final page regardless of permission choice
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                            currentPage += 1
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -342,14 +282,6 @@ struct OnboardingView: View {
             standardPageView(for: page)
         case .liveActivityPermission:
             liveActivityPageView(for: page)
-        case .notificationPermission:
-            permissionPageView(
-                for: page,
-                isGranted: notificationPermissionGranted,
-                grantedText: "Great! You'll receive helpful morning travel notifications.",
-                deniedText:
-                "I'll never spam you!\nNotifications help you arrive at school on time with morning travel alerts."
-            )
         }
     }
 
@@ -382,67 +314,6 @@ struct OnboardingView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 32)
                 .frame(maxWidth: 500)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-    }
-
-    @ViewBuilder
-    func permissionPageView(
-        for page: OnboardingPage, isGranted: Bool, grantedText: String, deniedText: String
-    ) -> some View {
-        VStack(spacing: 30) {
-            // Icon with permission status indicator
-            ZStack {
-                Image(systemName: page.imageName)
-                    .font(.system(size: 70))
-                    .foregroundStyle(page.imageColor)
-                    .padding()
-                    .background(
-                        Circle()
-                            .fill(page.imageColor.opacity(0.1))
-                            .frame(width: 140, height: 140)
-                    )
-
-                if isGranted {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 30))
-                        .foregroundStyle(.green)
-                        .background(
-                            Circle()
-                                .fill(Color(UIColor.systemBackground))
-                                .frame(width: 32, height: 32)
-                        )
-                        .offset(x: 50, y: 50)
-                        .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isGranted)
-
-            Text(page.title)
-                .font(.largeTitle)
-                .fontDesign(.rounded)
-                .bold()
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-
-            Text(page.description)
-                .font(.title3)
-                .fontDesign(.rounded)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 32)
-                .frame(maxWidth: 500)
-
-            // Status text
-            Text(isGranted ? grantedText : deniedText)
-                .font(.body)
-                .fontDesign(.rounded)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(isGranted ? .green : .secondary)
-                .padding(.horizontal, 32)
-                .frame(maxWidth: 500)
-                .padding(.top, 10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
@@ -506,6 +377,11 @@ struct OnboardingView: View {
             .tint(page.imageColor)
             .padding(.horizontal, 40)
             .frame(maxWidth: 400)
+
+            Text("You can always change this in Settings.")
+                .font(.footnote)
+                .fontDesign(.rounded)
+                .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
@@ -542,7 +418,6 @@ struct OnboardingPage {
 // Page type to distinguish between information and permission pages
 enum OnboardingPageType {
     case information
-    case notificationPermission
     case liveActivityPermission
 }
 

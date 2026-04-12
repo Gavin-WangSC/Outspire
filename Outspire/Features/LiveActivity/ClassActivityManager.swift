@@ -38,7 +38,8 @@ final class ClassActivityManager: ObservableObject {
     }
 
     var isEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "liveActivityEnabled")
+        // Default to true for existing users who never saw the onboarding LA toggle
+        UserDefaults.standard.object(forKey: "liveActivityEnabled") as? Bool ?? true
     }
 
     var isSupported: Bool {

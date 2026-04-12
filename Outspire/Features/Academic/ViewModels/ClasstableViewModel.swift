@@ -592,6 +592,6 @@ class ClasstableViewModel: ObservableObject {
 
         guard schedule.contains(where: { $0.endTime > now }) else { return }
 
-        ClassActivityManager.shared.startActivity(schedule: schedule)
+        ClassActivityManager.shared.startActivity(schedule: schedule, timetable: timetable)
     }
 }
