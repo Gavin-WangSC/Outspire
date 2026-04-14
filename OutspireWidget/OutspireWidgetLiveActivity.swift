@@ -138,7 +138,12 @@ private struct LockScreenView: View {
                             .foregroundStyle(.white.opacity(0.4))
                             .textCase(.uppercase)
 
-                        Text(timerInterval: state.rangeStart ... state.rangeEnd, countsDown: true)
+                        Text(
+                            timerInterval: state.rangeStart ... state.rangeEnd,
+                            pauseTime: nil,
+                            countsDown: true,
+                            showsHours: false
+                        )
                             .font(WidgetFont.number())
                             .tracking(-1)
                             .foregroundStyle(countdownColor(for: state))
@@ -180,7 +185,12 @@ private struct CompactTrailingView: View {
     let state: DisplayState
 
     var body: some View {
-        Text(timerInterval: state.rangeStart ... state.rangeEnd, countsDown: true)
+        Text(
+            timerInterval: state.rangeStart ... state.rangeEnd,
+            pauseTime: nil,
+            countsDown: true,
+            showsHours: false
+        )
             .font(WidgetFont.number(size: 14))
             .foregroundStyle(stateColor(for: state))
             .monospacedDigit()
@@ -242,7 +252,12 @@ struct OutspireWidgetLiveActivity: Widget {
                             .foregroundStyle(.white.opacity(0.4))
                             .textCase(.uppercase)
 
-                        Text(timerInterval: state.rangeStart ... state.rangeEnd, countsDown: true)
+                        Text(
+                            timerInterval: state.rangeStart ... state.rangeEnd,
+                            pauseTime: nil,
+                            countsDown: true,
+                            showsHours: false
+                        )
                             .font(WidgetFont.number(size: 22))
                             .tracking(-1)
                             .foregroundStyle(stateColor(for: state))

@@ -45,7 +45,12 @@ struct SmallWidgetView: View {
                 Spacer()
 
                 if let cls = entry.currentClass {
-                    Text(timerInterval: cls.startTime ... cls.endTime, countsDown: true)
+                    Text(
+                        timerInterval: cls.startTime ... cls.endTime,
+                        pauseTime: nil,
+                        countsDown: true,
+                        showsHours: false
+                    )
                         .numberStyle(size: 34)
                         .foregroundStyle(primaryForegroundStyle)
                         .tracking(-1.5)
@@ -82,7 +87,12 @@ struct SmallWidgetView: View {
                 Spacer()
 
                 if let cls = entry.currentClass {
-                    Text(timerInterval: entry.date ... cls.startTime, countsDown: true)
+                    Text(
+                        timerInterval: entry.date ... cls.startTime,
+                        pauseTime: nil,
+                        countsDown: true,
+                        showsHours: false
+                    )
                         .numberStyle(size: 34)
                         .foregroundStyle(primaryForegroundStyle)
                         .tracking(-1.5)
@@ -119,7 +129,12 @@ struct SmallWidgetView: View {
                 Spacer()
 
                 if let cls = entry.currentClass {
-                    Text(timerInterval: entry.date ... cls.endTime, countsDown: true)
+                    Text(
+                        timerInterval: entry.date ... cls.endTime,
+                        pauseTime: nil,
+                        countsDown: true,
+                        showsHours: false
+                    )
                         .numberStyle(size: 34)
                         .foregroundStyle(primaryForegroundStyle)
                         .tracking(-1.5)
