@@ -9,6 +9,7 @@ class ClubInfoViewModel: ObservableObject {
     @Published var groups: [ClubGroup] = []
     @Published var groupInfo: GroupInfo?
     @Published var members: [Member] = []
+    @Published var memberLoadError: String?
     @Published var instructorName: String?
     @Published var errorMessage: String?
     @Published var isLoading: Bool = false
@@ -171,22 +172,86 @@ class ClubInfoViewModel: ObservableObject {
         )
         self.groupInfo = info
         self.instructorName = detail?.TeacherName
-        // Determine membership by checking MyGroups (match by Id or GroupNo)
-        CASServiceV2.shared.fetchMyGroups { [weak self] res in
-            guard let self = self else { return }
+        self.members = []
+        self.memberLoadError = nil
+
+        // Two async fetches: membership status + member roster. Merge `isLoading` so the
+        // skeleton stays up until both finish.
+        var myGroupsDone = false
+        var detailDone = false
+        let finish = { [weak self] in
+            guard let self = self, myGroupsDone, detailDone else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 self.isLoading = false
                 self.isFromURLNavigation = false
+            }
+        }
+
+        // Determine membership by checking MyGroups (match by Id or GroupNo)
+        CASServiceV2.shared.fetchMyGroups { [weak self] res in
+            guard let self = self else { return }
+            switch res {
+            case let .success(myGroups):
+                let targetKeys = Set([group.C_GroupsID, group.C_GroupNo].filter { !$0.isEmpty })
+                let myKeys = Set(myGroups.flatMap { [$0.C_GroupsID, $0.C_GroupNo] }.filter { !$0.isEmpty })
+                self.isUserMember = !targetKeys.isDisjoint(with: myKeys)
+            case .failure:
+                self.isUserMember = false
+            }
+            myGroupsDone = true
+            finish()
+        }
+
+        // Fetch the rendered GroupDetail page for Supervisor / President / members.
+        // Some endpoints accept numeric group IDs while others accept group numbers, so retry
+        // with both identifiers before surfacing an error.
+        let detailIdentifiers = Array(NSOrderedSet(array: [group.C_GroupsID, group.C_GroupNo].filter { !$0.isEmpty })) as? [String] ?? []
+        var lastDetailError: NetworkError?
+        func loadGroupDetail(using identifiers: [String], index: Int = 0) {
+            guard index < identifiers.count else {
+                if let lastDetailError {
+                    self.memberLoadError = "Unable to load the member roster: \(lastDetailError.localizedDescription)"
+                } else {
+                    self.memberLoadError = "Unable to load the member roster for this club."
+                }
+                detailDone = true
+                finish()
+                return
+            }
+
+            CASServiceV2.shared.fetchGroupDetail(groupId: identifiers[index]) { [weak self] res in
+                guard let self = self else { return }
+
                 switch res {
-                case let .success(myGroups):
-                    let targetKeys = Set([group.C_GroupsID, group.C_GroupNo].filter { !$0.isEmpty })
-                    let myKeys = Set(myGroups.flatMap { [$0.C_GroupsID, $0.C_GroupNo] }.filter { !$0.isEmpty })
-                    self.isUserMember = !targetKeys.isDisjoint(with: myKeys)
-                case .failure:
-                    self.isUserMember = false
+                case let .success(parsed):
+                    var roster: [Member] = []
+                    if let pres = parsed.president { roster.append(pres) }
+                    roster.append(contentsOf: parsed.members)
+                    self.members = roster
+                    if roster.isEmpty {
+                        if Configuration.debugNetworkLogging, !parsed.debugSections.isEmpty {
+                            self.memberLoadError = "Parsed detail but found no members. Sections: \(parsed.debugSections.joined(separator: " | "))"
+                        } else {
+                            self.memberLoadError = "Parsed detail but found no members for this club."
+                        }
+                    } else {
+                        self.memberLoadError = nil
+                    }
+                    if let sup = parsed.supervisor?.trimmingCharacters(in: .whitespacesAndNewlines),
+                       !sup.isEmpty
+                    {
+                        self.instructorName = sup
+                    }
+                    detailDone = true
+                    finish()
+                case let .failure(error):
+                    lastDetailError = error
+                    loadGroupDetail(using: identifiers, index: index + 1)
                 }
             }
         }
+
+        loadGroupDetail(using: detailIdentifiers)
     }
 
     private func retryFetchWithSession(parameters: [String: String]) { /* no-op in V2 */ }
