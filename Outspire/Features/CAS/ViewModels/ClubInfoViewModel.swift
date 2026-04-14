@@ -175,19 +175,11 @@ class ClubInfoViewModel: ObservableObject {
         self.members = []
         self.memberLoadError = nil
 
-        // Two async fetches: membership status + member roster. Merge `isLoading` so the
-        // skeleton stays up until both finish.
-        var myGroupsDone = false
-        var detailDone = false
-        let finish = { [weak self] in
-            guard let self = self, myGroupsDone, detailDone else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                self.isLoading = false
-                self.isFromURLNavigation = false
-            }
-        }
+        // Two async fetches run in parallel; DispatchGroup gates `isLoading` until both complete.
+        let loadGroup = DispatchGroup()
 
         // Determine membership by checking MyGroups (match by Id or GroupNo)
+        loadGroup.enter()
         CASServiceV2.shared.fetchMyGroups { [weak self] res in
             guard let self = self else { return }
             switch res {
@@ -198,15 +190,18 @@ class ClubInfoViewModel: ObservableObject {
             case .failure:
                 self.isUserMember = false
             }
-            myGroupsDone = true
-            finish()
+            loadGroup.leave()
         }
 
         // Fetch the rendered GroupDetail page for Supervisor / President / members.
         // Some endpoints accept numeric group IDs while others accept group numbers, so retry
         // with both identifiers before surfacing an error.
-        let detailIdentifiers = Array(NSOrderedSet(array: [group.C_GroupsID, group.C_GroupNo].filter { !$0.isEmpty })) as? [String] ?? []
+        var detailIdentifiers: [String] = []
+        for id in [group.C_GroupsID, group.C_GroupNo] where !id.isEmpty {
+            if !detailIdentifiers.contains(id) { detailIdentifiers.append(id) }
+        }
         var lastDetailError: NetworkError?
+        loadGroup.enter()
         func loadGroupDetail(using identifiers: [String], index: Int = 0) {
             guard index < identifiers.count else {
                 if let lastDetailError {
@@ -214,8 +209,7 @@ class ClubInfoViewModel: ObservableObject {
                 } else {
                     self.memberLoadError = "Unable to load the member roster for this club."
                 }
-                detailDone = true
-                finish()
+                loadGroup.leave()
                 return
             }
 
@@ -242,8 +236,7 @@ class ClubInfoViewModel: ObservableObject {
                     {
                         self.instructorName = sup
                     }
-                    detailDone = true
-                    finish()
+                    loadGroup.leave()
                 case let .failure(error):
                     lastDetailError = error
                     loadGroupDetail(using: identifiers, index: index + 1)
@@ -252,6 +245,14 @@ class ClubInfoViewModel: ObservableObject {
         }
 
         loadGroupDetail(using: detailIdentifiers)
+
+        loadGroup.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                self.isLoading = false
+                self.isFromURLNavigation = false
+            }
+        }
     }
 
     private func retryFetchWithSession(parameters: [String: String]) { /* no-op in V2 */ }

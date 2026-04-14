@@ -199,16 +199,20 @@ final class CASServiceV2 {
         groupId: String,
         completion: @escaping (Result<GroupDetailParsed, NetworkError>) -> Void
     ) {
-        TSIMSClientV2.shared.getHTMLRaw(path: "/Stu/Cas/GroupDetail/\(groupId)") { result in
+        let encodedId = groupId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? groupId
+        TSIMSClientV2.shared.getHTMLRaw(path: "/Stu/Cas/GroupDetail/\(encodedId)") { result in
             switch result {
             case let .failure(err):
                 completion(.failure(err))
             case let .success(html):
-                do {
-                    let parsed = try Self.parseGroupDetailHTML(html)
-                    completion(.success(parsed))
-                } catch {
-                    completion(.failure(.decodingError(error)))
+                // Parse off main thread to avoid blocking UI on large pages
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        let parsed = try Self.parseGroupDetailHTML(html)
+                        DispatchQueue.main.async { completion(.success(parsed)) }
+                    } catch {
+                        DispatchQueue.main.async { completion(.failure(.decodingError(error))) }
+                    }
                 }
             }
         }
@@ -226,6 +230,7 @@ final class CASServiceV2 {
         var debugSections: [String] = []
 
         func sectionItemTexts(from body: Element) throws -> [String] {
+            // "memeber" is a typo in the TSIMS HTML; both spellings are matched intentionally.
             let selectors = "div.memeber-item, div.member-item, .memeber-item, .member-item, li, p"
             var texts = try body.select(selectors).array().compactMap { element in
                 let text = try? element.text().trimmingCharacters(in: .whitespacesAndNewlines)
@@ -249,7 +254,9 @@ final class CASServiceV2 {
                 }
             }
 
-            return Array(NSOrderedSet(array: texts)) as? [String] ?? texts
+            // Deduplicate while preserving order
+            var seen = Set<String>()
+            return texts.filter { seen.insert($0).inserted }
         }
 
         func memberFromItemText(_ raw: String, leaderYes: String, index: Int) -> Member? {
@@ -311,11 +318,10 @@ final class CASServiceV2 {
         }
 
         if matchedSectionCount == 0 {
-            throw NSError(
-                domain: "CASServiceV2.GroupDetail",
-                code: -11,
-                userInfo: [NSLocalizedDescriptionKey: "Unable to locate member sections in group detail page"]
-            )
+            struct GroupDetailParseError: LocalizedError {
+                var errorDescription: String? { "Unable to locate member sections in group detail page" }
+            }
+            throw GroupDetailParseError()
         }
 
         return GroupDetailParsed(
