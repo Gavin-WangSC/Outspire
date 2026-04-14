@@ -5,6 +5,8 @@ import SwiftUI
 
 struct LiveActivityDebugView: View {
     @ObservedObject private var manager = ClassActivityManager.shared
+    @State private var isEnabled =
+        UserDefaults.standard.object(forKey: "liveActivityEnabled") as? Bool ?? true
 
     var body: some View {
         List {
@@ -21,10 +23,7 @@ struct LiveActivityDebugView: View {
                     Text(manager.isSupported ? "Yes" : "No")
                         .foregroundStyle(manager.isSupported ? .green : .red)
                 }
-                Toggle("Enabled", isOn: Binding(
-                    get: { UserDefaults.standard.bool(forKey: "liveActivityEnabled") },
-                    set: { UserDefaults.standard.set($0, forKey: "liveActivityEnabled") }
-                ))
+                Toggle("Enabled", isOn: $isEnabled)
             }
 
             Section("Test Scenarios") {
@@ -55,6 +54,12 @@ struct LiveActivityDebugView: View {
             }
         }
         .navigationTitle("Live Activity Debug")
+        .onAppear {
+            isEnabled = UserDefaults.standard.object(forKey: "liveActivityEnabled") as? Bool ?? true
+        }
+        .onChange(of: isEnabled) { _, newValue in
+            UserDefaults.standard.set(newValue, forKey: "liveActivityEnabled")
+        }
     }
 
     private func startTest(_ scenario: TestScenario) {

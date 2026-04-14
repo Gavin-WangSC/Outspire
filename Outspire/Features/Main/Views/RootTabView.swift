@@ -4,22 +4,44 @@ struct RootTabView: View {
     @EnvironmentObject var settingsManager: SettingsManager
     @EnvironmentObject var urlSchemeHandler: URLSchemeHandler
     @EnvironmentObject var gradientManager: GradientManager
+    @AppStorage("lastVersionRun") private var lastVersionRun: String?
 
     @ObservedObject private var authV2 = AuthServiceV2.shared
 
     @State private var selectedTab: MainTab = .today
+    @State private var showOnboardingSheet = false
+    @State private var hasCheckedOnboarding = false
 
     enum MainTab: Hashable { case today, classtable, activities, search }
 
     var body: some View {
-        if authV2.isResolvingSession {
-            ProgressView()
-        } else if #available(iOS 26.0, *) {
-            ios26TabView
-        } else if #available(iOS 18.0, *) {
-            ios18TabView
-        } else {
-            legacyTabView
+        Group {
+            if authV2.isResolvingSession {
+                ProgressView()
+            } else if #available(iOS 26.0, *) {
+                ios26TabView
+            } else if #available(iOS 18.0, *) {
+                ios18TabView
+            } else {
+                legacyTabView
+            }
+        }
+        .sheet(isPresented: $showOnboardingSheet) {
+            OnboardingView(isPresented: $showOnboardingSheet)
+                .onDisappear { checkOnboardingStatus() }
+        }
+        .onChange(of: showOnboardingSheet) { _, newValue in
+            ConnectivityManager.shared.setOnboardingActive(newValue)
+        }
+        .task {
+            checkOnboardingStatus()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+        ) { _ in
+            if !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+                showOnboardingSheet = true
+            }
         }
     }
 
@@ -120,5 +142,33 @@ struct RootTabView: View {
         .onChange(of: selectedTab) { _, _ in
             HapticManager.shared.playSelectionFeedback()
         }
+    }
+
+    private func checkOnboardingStatus() {
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        let thresholdVersion = "0.5.1"
+
+        if shouldShowOnboardingForVersion(
+            lastVersionRun: lastVersionRun,
+            thresholdVersion: thresholdVersion
+        ) {
+            showOnboardingSheet = true
+            lastVersionRun = currentVersion
+        } else if !hasCheckedOnboarding {
+            hasCheckedOnboarding = true
+
+            if !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+                showOnboardingSheet = true
+            }
+        }
+    }
+
+    private func shouldShowOnboardingForVersion(lastVersionRun: String?, thresholdVersion: String)
+        -> Bool
+    {
+        guard let lastVersion = lastVersionRun else {
+            return true
+        }
+        return lastVersion.compare(thresholdVersion, options: .numeric) == .orderedAscending
     }
 }

@@ -3,6 +3,8 @@ import UserNotifications
 
 struct SettingsNotificationsView: View {
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
+    @State private var liveActivityEnabled =
+        UserDefaults.standard.object(forKey: "liveActivityEnabled") as? Bool ?? true
 
     var body: some View {
         List {
@@ -30,10 +32,7 @@ struct SettingsNotificationsView: View {
             }
 
             Section {
-                Toggle(isOn: Binding(
-                    get: { UserDefaults.standard.bool(forKey: "liveActivityEnabled") },
-                    set: { UserDefaults.standard.set($0, forKey: "liveActivityEnabled") }
-                )) {
+                Toggle(isOn: $liveActivityEnabled) {
                     Label("Live Activity", systemImage: "clock.badge.checkmark")
                 }
             } header: {
@@ -66,6 +65,11 @@ struct SettingsNotificationsView: View {
         .contentMargins(.vertical, 10.0)
         .onAppear {
             checkNotificationPermission()
+            liveActivityEnabled =
+                UserDefaults.standard.object(forKey: "liveActivityEnabled") as? Bool ?? true
+        }
+        .onChange(of: liveActivityEnabled) { _, newValue in
+            UserDefaults.standard.set(newValue, forKey: "liveActivityEnabled")
         }
     }
 

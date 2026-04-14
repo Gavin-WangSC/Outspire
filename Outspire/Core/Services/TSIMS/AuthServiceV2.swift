@@ -6,7 +6,13 @@ import SwiftSoup
 @MainActor
 final class AuthServiceV2: ObservableObject {
     static let shared = AuthServiceV2()
+    private static let installMarkerKey = "app.installation.id"
+    private static let usernameKey = "v2.username"
+    private static let passwordKey = "v2.password"
+
     private init() {
+        Self.resetKeychainIfFreshInstall()
+
         // Restore saved user and check session on launch
         let hasSavedUser: Bool
         if let data = UserDefaults.standard.data(forKey: "v2User"),
@@ -424,5 +430,14 @@ final class AuthServiceV2: ObservableObject {
         fetchProfile { ok in
             completion(ok)
         }
+    }
+
+    private static func resetKeychainIfFreshInstall() {
+        let defaults = UserDefaults.standard
+        guard defaults.string(forKey: installMarkerKey) == nil else { return }
+
+        SecureStore.remove(usernameKey)
+        SecureStore.remove(passwordKey)
+        defaults.set(UUID().uuidString, forKey: installMarkerKey)
     }
 }
